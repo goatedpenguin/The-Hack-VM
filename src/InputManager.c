@@ -9,9 +9,9 @@
 #include <unistd.h>
 
 
-char* cleanNamePathAndExtension(char* name) {
+char* cleanNamePathAndExtension(const char* name) {
     char* cleanedFileName = strdup(name);
-    char* slash = strrchr(cleanedFileName, "/");
+    char* slash = strrchr(cleanedFileName, '/');
     cleanedFileName = slash + 1; 
     *(cleanedFileName + strlen(cleanedFileName) - 3) = '\0';
     return cleanedFileName;
@@ -19,8 +19,6 @@ char* cleanNamePathAndExtension(char* name) {
 
 // assumes that path input is perfect
 VMInputSet* manageFiles(const char* path) {
-    int pathLen = strlen(path);
-    
     struct stat s;
     if (stat(path, &s) != 0) {
         perror("stat");
