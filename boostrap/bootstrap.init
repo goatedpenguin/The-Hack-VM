@@ -1,0 +1,3 @@
+// Needs to be implemented in asm 
+// SP = 256
+// call Sys.init
