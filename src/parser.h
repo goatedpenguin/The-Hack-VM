@@ -1,5 +1,6 @@
 #ifndef PARSER_H
 #define PARSER_H
+
 typedef enum {
     MEM_TEMP,
     MEM_STATIC,
@@ -36,6 +37,23 @@ typedef enum {
     F_RETURN
 } VMCommands;
 
+
+typedef enum {
+    SEGMENT,
+    NATIVE,
+    COMMAND
+} tag;
+
+typedef struct {
+    tag commandContext;
+    union {
+        memorySegments segment;
+        nativeOPS op;
+        VMCommands command;
+    } context;
+} commandType;
+
+
 typedef struct {
     VMCommands type;
     union {
@@ -52,8 +70,8 @@ typedef struct {
     } commandContext;
 } VMPacket;
 
-// Builds the VMPakcet using static function in source file
-VMPacket* buildVMPacket(char* command);
+// Builds the VMPakcet using static function in the source file
+VMPacket* buildVMPacket(const char* command);
 
 
 #endif
