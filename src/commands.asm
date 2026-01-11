@@ -293,20 +293,30 @@ JMP
 ; LOOP nVars times
     ; push 0
 
-
+@nVars
+D=A
 (LOOP)
-
-
+@exit
+JEQ
 
 @LOOP
 JMP
+
+(exit)
 
 ; exectue the normal function commands inside the function body as per normal
 
 ; return 
 
-endFrame = *LCL ; temp var endFrame
+endFrame = LCL ; temp var endFrame
+@LCL
+D=A
 retAddr = *(endFrame - 5)
+@5
+D=D-A
+A=D
+D=M
+
 *ARG = pop() ; ret val points to arg 0
 SP = *ARG + 1 ; restore SP
 THAT = *(endFrame - 1)
