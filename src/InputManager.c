@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 
-char* cleanNamePathAndExtension(const char* name) {
+static char* cleanNamePathAndExtension(const char* name) {
     char* cleanedFileName = strdup(name);
     char* slash = strrchr(cleanedFileName, '/');
     cleanedFileName = slash + 1; 

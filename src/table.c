@@ -1,20 +1,24 @@
-#include "table.h"
-#include "parser.h"
+#define _BSD_SOURCE 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include "table.h"
+#include "types.h"
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
 
-commandTable* initTable() {
-    commandTable* table = (commandTable *) malloc(sizeof(commandTable));
-    table->entries = (entry **) malloc(TABLE_SIZE * sizeof(entry *));
+table* initTable() {
+    table* hashTable = (table *) malloc(sizeof(table));
+    hashTable->entries = (entry **) malloc(TABLE_SIZE * sizeof(entry *));
     for (int i = 0; i < TABLE_SIZE; i++) {
-        table->entries[i] = NULL;
+        hashTable->entries[i] = NULL;
     }
-    return table;
+    return hashTable;
 }
 
-uint32_t hash(const char* key) {
+static uint32_t hash(const char* key) {
     uint32_t hash = 0;
 
     while (*key != '\0') {
@@ -28,29 +32,94 @@ uint32_t hash(const char* key) {
     hash += (hash << 15);
 
     return hash;
+} 
+
+static void addCommand(table* hashTable, const char* key, vmWord* val) {
+    int idx = hash(key) % TABLE_SIZE;
+    entry* new = (entry *) malloc(sizeof(entry));
+    new->next = hashTable->entries[idx];
+    hashTable->entries[idx] = new;
+    new->key = strdup(key);
+    new->val = val;
 }
 
-void addCommand(commandTable* table, const char* key, commandType* ct) {
-    uint32_t idx = hash(key) % TABLE_SIZE;
-    entry* temp = (entry *) malloc(sizeof(entry));
-    temp->key = strdup(key);
-    temp->type = ct;
-    temp->next = table->entries[idx];
-    table->entries[idx] = temp;  
-}
 
-commandType* getCommand(commandTable* table, const char* key) {
-    uint32_t idx = hash(key) % TABLE_SIZE;
-    entry* cur = table->entries[idx];
+vmWord* getCommand(table* hashTable, const char* key) {
+    int idx = hash(key) % TABLE_SIZE;
+    entry* cur = hashTable->entries[idx];
     while (cur != NULL) {
         if (strcmp(cur->key, key) == 0) {
-            return cur->type;
+            return cur->val;
         }
         cur = cur->next;
     }
     return NULL;
 }
 
-void buildCommandTable(commandTable* table) {
-    addCommand(table, )
+static vmWord* createSegment(memorySegments seg) {
+    vmWord* word = (vmWord *) malloc(sizeof(vmWord));
+    word->tag = SEGMENT;
+    word->vmCommandType.segment = seg;
+    return word;
 }
+
+static vmWord* createBuiltin(builtins b) {
+    vmWord* word = (vmWord *) malloc(sizeof(vmWord));
+    word->tag = BUILTIN;
+    word->vmCommandType.builtin = b;
+    return word;
+}
+
+static vmWord* createMemoryCmd(VMCommands cmd) {
+    vmWord* word = (vmWord *) malloc(sizeof(vmWord));
+    word->tag = MEMORY_CMD;
+    word->vmCommandType.command = cmd;
+    return word;
+}
+
+static vmWord* createFuncCmd(VMCommands cmd) {
+    vmWord* word = (vmWord *) malloc(sizeof(vmWord));
+    word->tag = FUNC_CMD;
+    word->vmCommandType.command = cmd;
+    return word;
+}
+
+static vmWord* createBranch(branch branchOperator) {
+    vmWord* word = (vmWord* ) malloc(sizeof(vmWord));
+    word->tag = BRANCH;
+    word->vmCommandType.branchOperator = branchOperator;
+    return word;
+}
+
+void buildVMTable(table* hashTable) {
+    addCommand(hashTable, "push", createMemoryCmd(C_PUSH));
+    addCommand(hashTable, "pop", createMemoryCmd(C_POP));
+
+    addCommand(hashTable, "function", createFuncCmd(F_FUNCTION));
+    addCommand(hashTable, "call", createFuncCmd(F_CALL));
+    addCommand(hashTable, "return", createFuncCmd(F_RETURN));
+
+    addCommand(hashTable, "label", createBranch(B_LABEL));
+    addCommand(hashTable, "goto", createBranch(B_GOTO));
+    addCommand(hashTable, "if-goto", createBranch(B_IFGOTO));
+
+    addCommand(hashTable, "add", createBuiltin(A_ADD));
+    addCommand(hashTable, "sub", createBuiltin(A_SUB));
+    addCommand(hashTable, "neg", createBuiltin(A_NEG));
+    addCommand(hashTable, "eq", createBuiltin(A_EQ));
+    addCommand(hashTable, "gt", createBuiltin(A_GT));
+    addCommand(hashTable, "lt", createBuiltin(A_LT));
+    addCommand(hashTable, "and", createBuiltin(A_AND));
+    addCommand(hashTable, "or", createBuiltin(A_OR));
+    addCommand(hashTable, "not", createBuiltin(A_NOT));
+
+    addCommand(hashTable, "argument", createSegment(MEM_ARG));
+    addCommand(hashTable, "local", createSegment(MEM_LOCAL));
+    addCommand(hashTable, "static", createSegment(MEM_STATIC));
+    addCommand(hashTable, "constant", createSegment(MEM_CONSTANT));
+    addCommand(hashTable, "this", createSegment(MEM_THIS));
+    addCommand(hashTable, "that", createSegment(MEM_THAT));
+    addCommand(hashTable, "pointer", createSegment(MEM_POINTER));
+    addCommand(hashTable, "temp", createSegment(MEM_TEMP));
+}
+

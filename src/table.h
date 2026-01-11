@@ -1,26 +1,34 @@
 #ifndef TABLE_H
 #define TABLE_H
 
-#define TABLE_SIZE 37
-#include "parser.h"
+#define TABLE_SIZE 53
 #include <stdint.h>
+#include "types.h"
+
+typedef struct {
+    vmWordType tag;
+    union {
+        memorySegments segment;
+        builtins builtin;
+        VMCommands command;
+        branch branchOperator;
+    } vmCommandType;
+} vmWord;
 
 typedef struct commandEntry {
     char* key;
-    commandType* type;
+    vmWord* val;
     struct commandEntry* next;
 } entry;
 
+// Note each entry is guaranteed to be unique.
 // Note this is a read only table hence, the fixed entry size.
 typedef struct {
     entry** entries;
-} commandTable;
+} table;
 
-commandTable* initTable();
-uint32_t hash(const char* key);
-void addCommand(commandTable* table, const char* key, commandType* ct);
-commandType* getCommand(commandTable* table, const char* key);
-void buildCommandTable(commandTable* table);
-
+table* initTable();
+vmWord* getCommand(table* hashTable, const char* key);
+void buildVMTable(table* hashTable);
 
 #endif
