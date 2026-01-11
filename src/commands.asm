@@ -1,12 +1,12 @@
 ; PUSH IMPLEMENTATION
 
-; push segment offset
+; push segment offset -> this for lcl and arg
 
 @OFFSET
 D=A
 
 @SEGMENT
-A=A+D
+A=M+D
 D=M
 
 @SP
@@ -16,7 +16,22 @@ M=D
 @SP
 M=M+1
 
-; statc push
+; push temp offset -> for temp. TEMP maps to ram slots 5-12, 0x5 is the base addr of temp
+@R5
+D=A
+@OFFSET
+A=D+A
+D=M
+
+@SP
+A=M
+M=D
+
+@SP
+M=M+1
+
+
+; static push
 
 push static i:
 @FILENAME.i
@@ -81,19 +96,19 @@ M=M+1
 @SP
 M=M-1
 A=M
-D=M // D = X
+D=M ; D = X
 @SEGMENT
 D=D+M 
 @OFFSET
-D=D+A // D = X + POP ADDR
+D=D+A ; D = X + POP ADDR
 @SP
 A=M
-A=M // A = X
+A=M ; A = X
 
-A=A+D // A = 2X + POP ADDR
-D=A-D // D = X
-A=A-D // A = X + POP ADDR 
-A=A-D // A = POP ADDR
+A=A+D ; A = 2X + POP ADDR
+D=A-D ; D = X
+A=A-D ; A = X + POP ADDR 
+A=A-D ; A = POP ADDR
 M=D  
 
 
@@ -104,7 +119,7 @@ M=D
 @SP
 M=M-1
 A=M
-D=M // D = x
+D=M ; D = x
 
 @Foo.i
 M=D
@@ -128,6 +143,23 @@ D=M
 @THAT
 M=D
 
+; pop temp offset
+
+@R5
+D=A
+@i
+D=D+A      
+@R13
+M=D        
+
+@SP
+AM=M-1     
+D=M        
+
+@R13
+A=M
+M=D        
+
 
 ; 1. Arithmetic & Logical Operations (Builtins)
 
@@ -137,13 +169,16 @@ M=D
 
 @SP
 AM=M-1
-D=M // D=B (top of the stack)
+D=M ; D=B (top of the stack)
 
 @SP
 AM=M-1
-D=D%sM // D = A %s B
-
+D=D%sM ; D = A %s B
 M=D
+
+@SP
+M=M+1
+
 
 ; Unary operations (operate on top of stack):
 
@@ -155,6 +190,8 @@ M=D
 AM=M-1
 M=%sM
 
+@SP
+M=M+1
 
 ; Comparison operations (pop two values, compute boolean, push result):
 
@@ -164,33 +201,36 @@ M=%sM
 
 ; lt
 
-comp(A, B) -> true = -1(0xFF), false = 0(0x0)
+; comp(A, B) -> true = -1 (0xFF), false = 0 (0x0)
+; add a static int n counter which increments each time a comparison op is called to prevent label clashes
 
 @SP
 AM=M-1
-D=M // D = B
+D=M ; D = B
 
 @SP
 AM=M-1
-D=M-D // D = A - B
+D=M-D ; D = A - B
 
-@if-true
+@if-true.n
 %s ;%
 
 D=0
 @SP
 A=M
 M=D
-@end
-JMP
+@end.n
+0;JMP
 
-(if-true)
+(if-true.n)
 D=-1
 @SP
 A=M
 M=D
 
-(end)
+(end.n)
+@SP
+M=M+1
 
 
 
@@ -202,18 +242,17 @@ M=D
 
 ; goto <X> → unconditional jump.
 
-@(labelName)
-JMP
+@labelName
+0;JMP
 
-; if-goto <X> → pop top stack value, jump if non-zero.
+; if-goto <X> → pop top stack value, jump if non zero
 @SP
 M=M-1
 A=M
 
 D=M
-D=D+1
 @labelName
-JEQ
+D;JNE
 
 ; 3. Function keyword implementations:
 
@@ -229,7 +268,6 @@ M=D
 M=M+1
 ; push lcl
 @LCL
-A=M
 D=M
 @SP
 A=M
@@ -238,7 +276,6 @@ M=D
 M=M+1
 ; push arg
 @ARG
-A=M
 D=M
 @SP
 A=M
@@ -247,7 +284,6 @@ M=D
 M=M+1
 ; push this
 @THIS
-A=M
 D=M
 @SP
 A=M
@@ -256,7 +292,6 @@ M=D
 M=M+1
 ; push that
 @THAT
-A=M
 D=M
 @SP
 A=M
@@ -282,7 +317,7 @@ M=D
 
 ; jump to called function
 @className.function
-JMP
+0;JMP
 
 (functionName$ret.n) ; label for return addr since after call we have other vm commands i.e. call bar.mult then neg then so and so forth 
                 ; we need to remeber the return address of neg
@@ -292,44 +327,95 @@ JMP
 (className.function) ; declare the function label for jumping into later (done via call) 
 ; LOOP nVars times
     ; push 0
+    ; need to give labels for loops unique names since multiple functions will be looping
 
-@nVars
+@nLocals
 D=A
-(LOOP)
-@exit
-JEQ
 
-@LOOP
-JMP
+(className.function$LOOP)
 
-(exit)
+@className.function$EXIT
+D;JEQ
+
+@SP
+A=M
+M=0
+
+@SP
+M=M+1
+D=D-1
+@className.function$LOOP
+0;JMP
+
+(className.function$EXIT)
 
 ; exectue the normal function commands inside the function body as per normal
 
 ; return 
 
-endFrame = LCL ; temp var endFrame
-@LCL
-D=A
-retAddr = *(endFrame - 5)
+; endFrame = LCL ; temp var endFrame
+; JUST NEEDS TO @LCL WHEN NEEDED
+; retAddr = *(endFrame - 5)
 @5
-D=D-A
-A=D
+D=A
+@LCL
+A=M-D
 D=M
+@R13
+M=D ; store ret addr temporarily in R13 register
 
-*ARG = pop() ; ret val points to arg 0
-SP = *ARG + 1 ; restore SP
-THAT = *(endFrame - 1)
-THIS = *(endFrame - 2)
-ARG = *(endFrame - 3)
-LCL = *(endFrame - 4)
-goto retAddr
+; *ARG = pop() ; ret val points to arg 0
+@SP
+AM=M-1
+D=M ; store retVal 
+@ARG
+A=M
+M=D ; arg[0] = retVal
+; SP = ARG + 1 ; restore SP
+@ARG
+D=M+1
+@SP
+M=D
 
+; THAT = *(endFrame - 1)
+@LCL
+A=M-1
+D=M
+@THAT
+M=D
 
+; THIS = *(endFrame - 2)
+@2
+D=A
 
+@LCL
+A=M-D
+D=M
+@THIS
+M=D
 
+; ARG = *(endFrame - 3)
+@3
+D=A
 
+@LCL
+A=M-D
+D=M
+@ARG
+M=D
 
-; 4. Optional / Helpers
+; LCL = *(endFrame - 4)
+@4
+D=A
 
-; Sys.init bootstrap code (to set SP and optionally call the first function).
+@LCL
+A=M-D
+D=M
+@LCL
+M=D
+
+; goto retAddr
+@R13
+D=M
+0;JMP
+
