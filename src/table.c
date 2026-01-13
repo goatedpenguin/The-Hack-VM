@@ -43,7 +43,6 @@ static void addCommand(table* hashTable, const char* key, vmWord* val) {
     new->val = val;
 }
 
-
 vmWord* getCommand(table* hashTable, const char* key) {
     int idx = hash(key) % TABLE_SIZE;
     entry* cur = hashTable->entries[idx];

@@ -6,7 +6,7 @@
 D=A
 
 @SEGMENT
-A=M+D
+A=D+M
 D=M
 
 @SP
@@ -32,8 +32,7 @@ M=M+1
 
 
 ; static push
-
-push static i:
+; push static i:
 @FILENAME.i
 D=M
 
@@ -93,23 +92,22 @@ M=M+1
 ; save top stack val
 ; put in RAM[segment + (offset)]
 
+@SEGMENT
+D=M
+@OFFSET
+D=D+A
+@R13
+M=D
+
 @SP
 M=M-1
 A=M
-D=M ; D = X
-@SEGMENT
-D=D+M 
-@OFFSET
-D=D+A ; D = X + POP ADDR
-@SP
-A=M
-A=M ; A = X
+D=M
 
-A=A+D ; A = 2X + POP ADDR
-D=A-D ; D = X
-A=A-D ; A = X + POP ADDR 
-A=A-D ; A = POP ADDR
-M=D  
+@R13
+A=M
+M=D
+
 
 
 ; static pop implementation
@@ -121,7 +119,7 @@ M=M-1
 A=M
 D=M ; D = x
 
-@Foo.i
+@filename.i
 M=D
 
 
@@ -144,7 +142,6 @@ D=M
 M=D
 
 ; pop temp offset
-
 @R5
 D=A
 @i
@@ -206,31 +203,32 @@ M=M+1
 
 @SP
 AM=M-1
-D=M ; D = B
+D=M            // D = B
 
 @SP
 AM=M-1
-D=M-D ; D = A - B
+D=M-D          // D = A - B
 
-@if-true.n
-%s ;%
+@IF_TRUE.n
+D;JMPCOND      // JMPCOND ∈ {JEQ, JGT, JLT}
 
 D=0
 @SP
 A=M
 M=D
-@end.n
+@END.n
 0;JMP
 
-(if-true.n)
+(IF_TRUE.n)
 D=-1
 @SP
 A=M
 M=D
 
-(end.n)
+(END.n)
 @SP
 M=M+1
+
 
 
 
@@ -245,7 +243,7 @@ M=M+1
 @labelName
 0;JMP
 
-; if-goto <X> → pop top stack value, jump if non zero
+; if_goto <X> → pop top stack value, jump if non zero
 @SP
 M=M-1
 A=M
